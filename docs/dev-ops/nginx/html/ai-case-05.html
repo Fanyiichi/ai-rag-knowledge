@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>AI Stream Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fade-in-up animation for messages */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-xl bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-4">
+        <h1 class="text-white text-2xl font-semibold">AI Stream Chat</h1>
+    </div>
+    <!-- Chat window -->
+    <div id="chatWindow" class="flex-1 p-4 space-y-4 overflow-y-auto">
+        <!-- Messages will appear here -->
+    </div>
+    <!-- Input area -->
+    <div class="p-4 bg-gray-50 flex items-center space-x-2">
+        <input
+                id="messageInput"
+                type="text"
+                placeholder="Type your message…"
+                class="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-shadow"
+        />
+        <button
+                id="sendBtn"
+                class="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50"
+        >
+            Send
+        </button>
+    </div>
+</div>
+
+<script>
+    const chatWindow = document.getElementById("chatWindow");
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    const MODEL = "deepseek-r1:1.5b";
+    const API_BASE = "http://localhost:8090/api/v1/ollama";
+
+    function appendBubble(text, isUser) {
+        const bubble = document.createElement("div");
+        bubble.className =
+            (isUser
+                ? "self-end bg-gray-200 text-gray-800"
+                : "self-start bg-indigo-50 text-gray-900") +
+            " px-4 py-2 rounded-2xl max-w-[70%] fade-in-up";
+        bubble.textContent = text;
+        chatWindow.appendChild(bubble);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return bubble;
+    }
+
+    sendBtn.addEventListener("click", () => {
+        const message = input.value.trim();
+        if (!message) return;
+
+        input.value = "";
+        input.disabled = true;
+        sendBtn.disabled = true;
+
+        appendBubble(message, true);
+        const aiBubble = appendBubble("", false);
+
+        const apiUrl =
+            `${API_BASE}/generate_stream` +
+            `?model=${encodeURIComponent(MODEL)}` +
+            `&message=${encodeURIComponent(message)}`;
+
+        const es = new EventSource(apiUrl);
+
+        es.onmessage = (evt) => {
+            try {
+                const { result } = JSON.parse(evt.data);
+                let content = result.output?.content || "";
+                content = content.replace(/<\/think>/g, "").replace(/<think>/g, "").trim();
+                const finish = result.metadata?.finishReason;
+
+                if (content) {
+                    aiBubble.textContent += content;
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+                if (finish === "STOP") {
+                    es.close();
+                    input.disabled = false;
+                    sendBtn.disabled = false;
+                    input.focus();
+                }
+            } catch (err) {
+                console.error("SSE parse error:", err);
+            }
+        };
+
+        es.onerror = (err) => {
+            console.error("Stream error:", err);
+            es.close();
+            input.disabled = false;
+            sendBtn.disabled = false;
+        };
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            sendBtn.click();
+        }
+    });
+</script>
+</body>
+</html>
