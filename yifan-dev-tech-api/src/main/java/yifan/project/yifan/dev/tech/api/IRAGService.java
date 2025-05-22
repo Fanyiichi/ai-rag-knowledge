@@ -11,5 +11,7 @@ public interface IRAGService {
 
     Response<String> uploadFile(String ragTag, List<MultipartFile> files);
 
+    Response<String> analyzeGitRepository(String repoUrl, String userName, String token);
+
 
 }
