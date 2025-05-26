@@ -27,6 +27,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 
 
+
 @Slf4j
 @RestController()
 @CrossOrigin("*")
@@ -35,16 +36,12 @@ public class RAGController implements IRAGService {
 
     @Resource
     private OllamaChatClient ollamaChatClient;
-
     @Resource
     private TokenTextSplitter tokenTextSplitter;
-
     @Resource
     private SimpleVectorStore simpleVectorStore;
-
     @Resource
     private PgVectorStore pgVectorStore;
-
     @Resource
     private RedissonClient redissonClient;
 
@@ -52,14 +49,18 @@ public class RAGController implements IRAGService {
     @Override
     public Response<List<String>> queryRagTagList() {
         RList<String> elements = redissonClient.getList("ragTag");
-        return Response.<List<String>>builder().code("0000").info("Invocation succeeded").data(elements).build();
+        return Response.<List<String>>builder()
+                .code("0000")
+                .info("调用成功")
+                .data(elements)
+                .build();
     }
 
     @RequestMapping(value = "file/upload", method = RequestMethod.POST, headers = "content-type=multipart/form-data")
     @Override
     public Response<String> uploadFile(@RequestParam String ragTag, @RequestParam("file") List<MultipartFile> files) {
-        log.info("Uploading {}", ragTag);
-        for(MultipartFile file : files){
+        log.info("上传知识库开始 {}", ragTag);
+        for (MultipartFile file : files) {
             TikaDocumentReader documentReader = new TikaDocumentReader(file.getResource());
             List<Document> documents = documentReader.get();
             List<Document> documentSplitterList = tokenTextSplitter.apply(documents);
@@ -70,18 +71,18 @@ public class RAGController implements IRAGService {
             pgVectorStore.accept(documentSplitterList);
 
             RList<String> elements = redissonClient.getList("ragTag");
-            if(!elements.contains(ragTag)){
+            if (!elements.contains(ragTag)) {
                 elements.add(ragTag);
             }
-
         }
-        log.info("Uploaded {}", ragTag);
-        return Response.<String>builder().code("0000").info("Invocation succeeded").build();
+
+        log.info("上传知识库完成 {}", ragTag);
+        return Response.<String>builder().code("0000").info("调用成功").build();
     }
 
     @RequestMapping(value = "analyze_git_repository", method = RequestMethod.POST)
     @Override
-    public Response<String> analyzeGitRepository(@RequestParam String repoUrl, @RequestParam String userName, @RequestParam String token) throws Exception{
+    public Response<String> analyzeGitRepository(@RequestParam String repoUrl, @RequestParam String userName, @RequestParam String token) throws Exception {
         String localPath = "./git-cloned-repo";
         String repoProjectName = extractProjectName(repoUrl);
         log.info("克隆路径：{}", new File(localPath).getAbsolutePath());
@@ -136,8 +137,6 @@ public class RAGController implements IRAGService {
         return Response.<String>builder().code("0000").info("调用成功").build();
     }
 
-
-
     private String extractProjectName(String repoUrl) {
         String[] parts = repoUrl.split("/");
         String projectNameWithGit = parts[parts.length - 1];
@@ -145,3 +144,4 @@ public class RAGController implements IRAGService {
     }
 
 }
+

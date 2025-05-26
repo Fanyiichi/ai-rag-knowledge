@@ -46,7 +46,7 @@ public class JGitTest {
         // 这部分替换为你的
         String repoURL = "https://github.com/Fanyiichi/yi-big-market";
         String username = "Fanyiichi";
-        String password = "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";
+        String password = "xx";
 
         String localPath = "./cloned-repo";
         log.info("克隆路径：" + new File(localPath).getAbsolutePath());
